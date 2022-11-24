@@ -2,13 +2,13 @@
 pragma solidity 0.8.16;
 
 import "forge-std/Test.sol";
-import {TestToken} from "../src/TestToken.sol";
+import {BetToken} from "../src/BetToken.sol";
 
-contract TestTokenTest is Test {
-  TestToken token;
+contract BetTokenTest is Test {
+  BetToken token;
 
   function setUp() public {
-    token = new TestToken();
+    token = new BetToken();
   }
 
   function testAssertTrue() public {

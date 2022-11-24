@@ -3,7 +3,7 @@ pragma solidity 0.8.16;
 
 import "forge-std/Script.sol";
 
-contract TestTokenScript is Script {
+contract BetTokenScript is Script {
   function setUp() public {}
 
   function run() public {
