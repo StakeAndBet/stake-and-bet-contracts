@@ -5,6 +5,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      
+      - name: Install Foundry
+        uses: onbjerg/foundry-toolchain@v1
+        with:
+          version: nightly
+      - name: Install dependencies
+        run: forge install
+      - name: Forge build
+        run: forge build
 
       - name: Run Slither
         uses: crytic/slither-action@v0.2.0
@@ -13,6 +22,7 @@ jobs:
           solc-version: "0.8.16"
           sarif: results.sarif
           fail-on: none
+          ignore-compile: true
 
       - name: Upload SARIF file
         uses: github/codeql-action/upload-sarif@v2
