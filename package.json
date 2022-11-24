@@ -1,0 +1,28 @@
+{
+  "name": "stake-and-bet-contracts",
+  "version": "0.0.1",
+  "description": "Stake & Bet Contracts",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib",
+    "test": "test"
+  },
+  "scripts": {
+    "test": "hardhat test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/StakeAndBet/stake-and-bet-contracts.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/StakeAndBet/stake-and-bet-contracts/issues"
+  },
+  "homepage": "https://github.com/StakeAndBet/stake-and-bet-contracts#readme",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^2.0.0",
+    "hardhat": "^2.12.2",
+    "hardhat-preprocessor": "^0.1.5"
+  }
+}
