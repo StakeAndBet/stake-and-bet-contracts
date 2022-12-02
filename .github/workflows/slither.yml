@@ -5,7 +5,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Install Foundry
         uses: onbjerg/foundry-toolchain@v1
         with:
@@ -17,7 +17,6 @@ jobs:
         uses: crytic/slither-action@v0.2.0
         id: slither
         with:
-          solc-version: "0.8.16"
           sarif: results.sarif
           fail-on: none
           slither-args: "--compile-force-framework foundry"
