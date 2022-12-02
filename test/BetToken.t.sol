@@ -11,7 +11,24 @@ contract BetTokenTest is Test {
     token = new BetToken();
   }
 
-  function testAssertTrue() public {
-    assertTrue(true);
+  // -------------------- WHITELIST --------------------
+  function test_initialContractState() public {
+    // Check that the owner is whitelisted
+    assertTrue(token.owner() == address(this));
+    assertTrue(token.isWhitelisted(address(this)));
+  }
+
+  function test_addToWhitelist() public {
+    address account = address(0x1);
+    token.addToWhitelist(account);
+    assertTrue(token.isWhitelisted(account));
+  }
+
+  function test_removeFromWhitelist() public {
+    address account = address(0x1);
+    token.addToWhitelist(account);
+    assertTrue(token.isWhitelisted(account));
+    token.removeFromWhitelist(account);
+    assertTrue(!token.isWhitelisted(account));
   }
 }
