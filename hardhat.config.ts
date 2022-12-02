@@ -4,7 +4,6 @@ import "@nomicfoundation/hardhat-toolbox";
 import "hardhat-preprocessor";
 import { HardhatUserConfig } from "hardhat/config";
 
-
 function getRemappings() {
   return fs
     .readFileSync("remappings.txt", "utf8")
@@ -15,13 +14,26 @@ function getRemappings() {
 
 const config: HardhatUserConfig = {
   solidity: {
-    version: "0.8.16",
-    settings: {
-      optimizer: {
-        enabled: true,
-        runs: 1000,
+    compilers: [
+      {
+        version: "0.8.16",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 1000,
+          },
+        },
       },
-    },
+      {
+        version: "0.7.6",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 1000,
+          },
+        },
+      },
+    ],
   },
   paths: {
     sources: "./src", // Use ./src rather than ./contracts as Hardhat expects
