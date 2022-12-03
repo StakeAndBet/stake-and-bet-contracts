@@ -22,7 +22,7 @@
   "homepage": "https://github.com/StakeAndBet/stake-and-bet-contracts#readme",
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^2.0.0",
-    "hardhat": "^2.12.2",
+    "hardhat": "^2.12.3",
     "hardhat-preprocessor": "^0.1.5"
   }
 }
