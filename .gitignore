@@ -1,6 +1,7 @@
 # Foundry
 cache/
 out/
+lcov.info
 
 # JS
 node_modules/
