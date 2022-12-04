@@ -2,16 +2,17 @@
 pragma solidity ^0.8.16;
 
 import "openzeppelin-contracts/token/ERC20/ERC20.sol";
+import "openzeppelin-contracts/token/ERC20/presets/ERC20PresetMinterPauser.sol";
 import "openzeppelin-contracts/access/Ownable.sol";
 
-contract BetToken is ERC20, Ownable {
+contract BetToken is ERC20PresetMinterPauser, Ownable {
   // Transfer whitelist
   mapping(address => bool) private whitelist;
 
-  event WhitelistAdded(address indexed account);
-  event WhitelistRemoved(address indexed account);
+  event AddedToWhitelist(address indexed account);
+  event RemovedFromWhitelist(address indexed account);
 
-  constructor() ERC20("Stake & Bet Token", "SAB") {}
+  constructor() ERC20PresetMinterPauser("Stake & Bet Token", "SAB") {}
 
   /**
    * @notice  Set decimals to 6 to match mainstream stablecoins
@@ -55,7 +56,7 @@ contract BetToken is ERC20, Ownable {
    */
   function addToWhitelist(address addr) public onlyOwner {
     whitelist[addr] = true;
-    emit WhitelistAdded(addr);
+    emit AddedToWhitelist(addr);
   }
 
   /**
@@ -65,7 +66,7 @@ contract BetToken is ERC20, Ownable {
    */
   function removeFromWhitelist(address addr) public onlyOwner {
     whitelist[addr] = false;
-    emit WhitelistRemoved(addr);
+    emit RemovedFromWhitelist(addr);
   }
 
   /// @notice Checks if an address is whitelisted

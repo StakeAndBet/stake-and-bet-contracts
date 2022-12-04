@@ -4,25 +4,24 @@ pragma solidity 0.8.16;
 import "forge-std/Test.sol";
 import {BetToken} from "../src/BetToken.sol";
 
-// Derive from original contract to access internal functions (mint) for testing
-contract MintableBetToken is BetToken {
-  function mint(address account, uint256 amount) public {
-    _mint(account, amount);
-  }
-}
-
 contract BetTokenTest is Test {
   address owner = address(0x1337);
   address account1 = address(0x1);
   address account2 = address(0x2);
+  address betTokenMinter = address(0x3);
 
   uint8 decimals = 6;
 
-  MintableBetToken token;
+  BetToken token;
+
+  event AddedToWhitelist(address indexed account);
+  event RemovedFromWhitelist(address indexed account);
 
   function setUp() public {
-    vm.prank(owner);
-    token = new MintableBetToken();
+    vm.startPrank(owner);
+    token = new BetToken();
+    token.grantRole(token.MINTER_ROLE(), betTokenMinter);
+    vm.stopPrank();
   }
 
   // -------------------- WHITELIST --------------------
@@ -34,6 +33,8 @@ contract BetTokenTest is Test {
 
   function test_addToWhitelist() public {
     vm.prank(owner);
+    vm.expectEmit(true, false, false, true);
+    emit AddedToWhitelist(account1);
     token.addToWhitelist(account1);
 
     assertTrue(token.isWhitelisted(account1));
@@ -43,6 +44,8 @@ contract BetTokenTest is Test {
     vm.startPrank(owner);
     token.addToWhitelist(account1);
 
+    vm.expectEmit(true, false, false, true);
+    emit RemovedFromWhitelist(account1);
     token.removeFromWhitelist(account1);
     vm.stopPrank();
 
@@ -115,6 +118,7 @@ contract BetTokenTest is Test {
 
   // -------------------- HELPERS --------------------
   function _mintTokens(address account, uint256 amount) private {
+    vm.prank(betTokenMinter);
     token.mint(account, amount);
   }
 }
