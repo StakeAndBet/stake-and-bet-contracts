@@ -9,10 +9,6 @@ import {BetStableSwap} from "../src/BetStableSwap.sol";
 contract DummyStableToken is ERC20 {
   constructor() ERC20("Dummy Stable Token", "DST") {}
 
-  function decimals() public pure override returns (uint8) {
-    return 6;
-  }
-
   function mint(address account, uint256 amount) public {
     _mint(account, amount);
   }
@@ -25,11 +21,11 @@ contract BetStableSwapTest is Test {
   address account1 = address(0x1);
   address account2 = address(0x2);
 
+  uint8 decimals = 18;
+
   BetToken betToken;
   BetStableSwap betStableSwap;
   DummyStableToken stableToken;
-
-  uint8 decimals = 6;
 
   function setUp() public {
     vm.prank(stableTokenOwner);
@@ -74,7 +70,7 @@ contract BetStableSwapTest is Test {
 
   function test_deposit0StableTokenForBetToken() public {
     vm.startPrank(account1);
-    stableToken.approve(address(betStableSwap), 10**6);
+    stableToken.approve(address(betStableSwap), 10**decimals);
     vm.expectRevert("BetStableSwap: Amount must be greater than 0");
     betStableSwap.depositStableTokenForBetToken(0);
     vm.stopPrank();
@@ -112,7 +108,7 @@ contract BetStableSwapTest is Test {
 
   function test_burn0BetTokenForStableToken() public {
     vm.startPrank(account1);
-    betToken.approve(address(betStableSwap), 10**6);
+    betToken.approve(address(betStableSwap), 10**decimals);
     vm.expectRevert("BetStableSwap: Amount must be greater than 0");
     betStableSwap.burnBetTokenForStableToken(0);
     vm.stopPrank();

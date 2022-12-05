@@ -15,14 +15,6 @@ contract BetToken is ERC20PresetMinterPauser, Ownable {
   constructor() ERC20PresetMinterPauser("Stake & Bet Token", "SAB") {}
 
   /**
-   * @notice  Set decimals to 6 to match mainstream stablecoins
-   * @return  uint8  .
-   */
-  function decimals() public view virtual override returns (uint8) {
-    return 6;
-  }
-
-  /**
    * @notice Checks if the `from` or `to` addresses of the transfer are whitelisted/owner before the transfer is executed
    * @dev This function is called by the transfer and transferFrom functions before the actual transfer is executed. If either address is not whitelisted or the owner, the transfer is reverted.
    Calling conditions:

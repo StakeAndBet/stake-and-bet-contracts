@@ -14,7 +14,6 @@ import "openzeppelin-contracts/token/ERC20/extensions/IERC20Metadata.sol";
  * as a way to swap between two tokens.
  * @dev  The contract is designed to be used with the BetToken contract, but
  * can be used with any ERC20 token.
- * It is assumed that the two tokens have the same number of decimals.
  * The contract has the following features:
  *     - 5:1 swap ratio between BetToken and the other token
  *     - User can deposit any amount of the other token and receive the amount * 5 of BetToken minted to their account.
@@ -43,11 +42,6 @@ contract BetStableSwap {
       _stableToken != address(0),
       "BetStableSwap: StableToken address must be non-zero"
     );
-    require(
-      IERC20Metadata(_betToken).decimals() ==
-        IERC20Metadata(_stableToken).decimals(),
-      "BetStableSwap: BetToken and StableToken must have the same number of decimals"
-    );
     betToken = BetToken(_betToken);
     stableToken = IERC20(_stableToken);
   }
@@ -59,7 +53,6 @@ contract BetStableSwap {
    */
   function depositStableTokenForBetToken(uint256 amount) external {
     require(amount > 0, "BetStableSwap: Amount must be greater than 0");
-    // emit SwappedStableTokenToBetToken(msg.sender, amount);
     stableToken.safeTransferFrom(msg.sender, address(this), amount);
     betToken.mint(msg.sender, amount * SWAP_RATIO);
   }
@@ -71,7 +64,6 @@ contract BetStableSwap {
    */
   function burnBetTokenForStableToken(uint256 amount) external {
     require(amount > 0, "BetStableSwap: Amount must be greater than 0");
-    // emit SwappedBetTokenToStableToken(msg.sender, amount);
     betToken.burnFrom(msg.sender, amount);
     stableToken.safeTransfer(msg.sender, amount / 5);
   }

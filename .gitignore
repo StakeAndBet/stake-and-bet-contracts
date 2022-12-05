@@ -1,7 +1,9 @@
 # Foundry
+broadcast/
 cache/
 out/
 lcov.info
+.env
 
 # JS
 node_modules/
