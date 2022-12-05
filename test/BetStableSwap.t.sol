@@ -31,9 +31,6 @@ contract BetStableSwapTest is Test {
 
   uint8 decimals = 6;
 
-  //   event SwappedStableTokenToBetToken(address indexed user, uint256 amount);
-  //   event SwappedBetTokenToStableToken(address indexed user, uint256 amount);
-
   function setUp() public {
     vm.prank(stableTokenOwner);
     stableToken = new DummyStableToken();
@@ -42,7 +39,7 @@ contract BetStableSwapTest is Test {
     betToken = new BetToken();
 
     vm.prank(betStableSwapOwner);
-    betStableSwap = new BetStableSwap(betToken, stableToken);
+    betStableSwap = new BetStableSwap(address(betToken), address(stableToken));
 
     vm.startPrank(betTokenOwner);
     betToken.grantRole(betToken.MINTER_ROLE(), address(betStableSwap));
@@ -63,8 +60,6 @@ contract BetStableSwapTest is Test {
     vm.startPrank(account1);
     stableToken.approve(address(betStableSwap), amount);
     uint256 betTokenSupplyBefore = betToken.totalSupply();
-    // vm.expectEmit(true, false, false, true);
-    // emit SwappedStableTokenToBetToken(account1, amount);
     betStableSwap.depositStableTokenForBetToken(amount);
     uint256 betTokenSupplyAfter = betToken.totalSupply();
     vm.stopPrank();
@@ -95,8 +90,6 @@ contract BetStableSwapTest is Test {
     _mintStableToken(account1, amount);
     vm.startPrank(account1);
     stableToken.approve(address(betStableSwap), amount);
-    // vm.expectEmit(true, false, false, true);
-    // emit SwappedStableTokenToBetToken(account1, amount);
     betStableSwap.depositStableTokenForBetToken(amount);
 
     betToken.approve(
