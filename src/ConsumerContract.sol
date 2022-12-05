@@ -51,8 +51,8 @@ contract ConsumerContract is ChainlinkClient, ConfirmedOwner {
         );
 
         req.add("from", from);
-        req.addUint("start-time", startTime);
-        req.addUint("end-time", endTime);
+        req.addUint("startTime", startTime);
+        req.addUint("endTime", endTime);
         // No need extra parameters for this job. Send the request
         return sendChainlinkRequest(req, ORACLE_PAYMENT); // Last Chainlink version use sendOperatorRequest instead
     }
