@@ -31,8 +31,8 @@ contract BetStableSwapTest is Test {
 
   uint8 decimals = 6;
 
-  event SwappedStableTokenToBetToken(address indexed user, uint256 amount);
-  event SwappedBetTokenToStableToken(address indexed user, uint256 amount);
+  //   event SwappedStableTokenToBetToken(address indexed user, uint256 amount);
+  //   event SwappedBetTokenToStableToken(address indexed user, uint256 amount);
 
   function setUp() public {
     vm.prank(stableTokenOwner);
@@ -55,21 +55,26 @@ contract BetStableSwapTest is Test {
   }
 
   function test_depositStableTokenForBetToken(uint256 amount) public {
-    vm.assume(amount > 0);
+    vm.assume(
+      amount > 0 && amount <= type(uint256).max / betStableSwap.SWAP_RATIO()
+    );
     _mintStableToken(account1, amount);
 
     vm.startPrank(account1);
     stableToken.approve(address(betStableSwap), amount);
     uint256 betTokenSupplyBefore = betToken.totalSupply();
-    vm.expectEmit(true, false, false, true);
-    emit SwappedStableTokenToBetToken(account1, amount);
+    // vm.expectEmit(true, false, false, true);
+    // emit SwappedStableTokenToBetToken(account1, amount);
     betStableSwap.depositStableTokenForBetToken(amount);
     uint256 betTokenSupplyAfter = betToken.totalSupply();
     vm.stopPrank();
 
-    assertEq(betToken.balanceOf(account1), amount);
+    assertEq(betToken.balanceOf(account1), amount * betStableSwap.SWAP_RATIO());
     assertEq(stableToken.balanceOf(account1), 0);
-    assertEq(betTokenSupplyAfter - betTokenSupplyBefore, amount);
+    assertEq(
+      betTokenSupplyAfter - betTokenSupplyBefore,
+      amount * betStableSwap.SWAP_RATIO()
+    );
   }
 
   function test_deposit0StableTokenForBetToken() public {
@@ -84,22 +89,32 @@ contract BetStableSwapTest is Test {
   }
 
   function test_burnBetTokenForStableToken(uint256 amount) public {
-    vm.assume(amount > 0);
+    vm.assume(
+      amount > 0 && amount <= type(uint256).max / betStableSwap.SWAP_RATIO()
+    );
     _mintStableToken(account1, amount);
     vm.startPrank(account1);
     stableToken.approve(address(betStableSwap), amount);
-    vm.expectEmit(true, false, false, true);
-    emit SwappedStableTokenToBetToken(account1, amount);
+    // vm.expectEmit(true, false, false, true);
+    // emit SwappedStableTokenToBetToken(account1, amount);
     betStableSwap.depositStableTokenForBetToken(amount);
 
-    betToken.approve(address(betStableSwap), amount);
+    betToken.approve(
+      address(betStableSwap),
+      amount * betStableSwap.SWAP_RATIO()
+    );
     uint256 betTokenSupplyBefore = betToken.totalSupply();
-    betStableSwap.burnBetTokenForStableToken(amount);
+    betStableSwap.burnBetTokenForStableToken(
+      amount * betStableSwap.SWAP_RATIO()
+    );
     uint256 betTokenSupplyAfter = betToken.totalSupply();
     vm.stopPrank();
 
     assertEq(betToken.balanceOf(account1), 0);
-    assertEq(betTokenSupplyBefore - betTokenSupplyAfter, amount);
+    assertEq(
+      betTokenSupplyBefore - betTokenSupplyAfter,
+      amount * betStableSwap.SWAP_RATIO()
+    );
   }
 
   function test_burn0BetTokenForStableToken() public {

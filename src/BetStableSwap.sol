@@ -11,7 +11,7 @@ pragma solidity ^0.8.16;
 // It is assumed that the two tokens have the same number of decimals.
 
 // The contract has the following features:
-// - 1:1 swap ratio between BetToken and the other token
+// - 5:1 swap ratio between BetToken and the other token
 // - User can deposit any amount of the other token and receive the same amount of BetToken minted to their account.
 // - User can deposit any amount of BetToken and receive the same amount of the other token sent to their account. The BetToken is burned.
 
@@ -26,8 +26,11 @@ contract BetStableSwap {
   BetToken public betToken;
   IERC20 public stableToken;
 
-  event SwappedStableTokenToBetToken(address indexed user, uint256 amount);
-  event SwappedBetTokenToStableToken(address indexed user, uint256 amount);
+  // 1 StableToken = 5 BetToken
+  uint256 public constant SWAP_RATIO = 5;
+
+//   event SwappedStableTokenToBetToken(address indexed user, uint256 amount);
+//   event SwappedBetTokenToStableToken(address indexed user, uint256 amount);
 
   constructor(BetToken _betToken, IERC20 _stableToken) {
     betToken = _betToken;
@@ -41,9 +44,9 @@ contract BetStableSwap {
    */
   function depositStableTokenForBetToken(uint256 amount) external {
     require(amount > 0, "BetStableSwap: Amount must be greater than 0");
-    emit SwappedStableTokenToBetToken(msg.sender, amount);
+    // emit SwappedStableTokenToBetToken(msg.sender, amount);
     stableToken.safeTransferFrom(msg.sender, address(this), amount);
-    betToken.mint(msg.sender, amount);
+    betToken.mint(msg.sender, amount * SWAP_RATIO);
   }
 
   /**
@@ -53,8 +56,8 @@ contract BetStableSwap {
    */
   function burnBetTokenForStableToken(uint256 amount) external {
     require(amount > 0, "BetStableSwap: Amount must be greater than 0");
-    emit SwappedBetTokenToStableToken(msg.sender, amount);
+    // emit SwappedBetTokenToStableToken(msg.sender, amount);
     betToken.burnFrom(msg.sender, amount);
-    stableToken.safeTransfer(msg.sender, amount);
+    stableToken.safeTransfer(msg.sender, amount / 5);
   }
 }
