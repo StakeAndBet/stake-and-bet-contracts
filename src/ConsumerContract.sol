@@ -37,12 +37,13 @@ contract ConsumerContract is ChainlinkClient, ConfirmedOwner {
      * @param from The user to search for tweets.
      * @param startTime The UNIX timestamp from which the search begins.
      * @param endTime The UNIX timestamp at which the search ends.
+     * @dev uint32 is sufficient to hold a date in UNIX Timestamp format until Feb 07 2106
      * @return requestId the request ID of the new Chainlink request.
      */
     function requestTweetCount(
         string memory from,
-        uint256 startTime,
-        uint256 endTime
+        uint32 startTime,
+        uint32 endTime
     ) public returns (bytes32 requestId) {
         Chainlink.Request memory req = buildChainlinkRequest( // Last Chainlink version use buildOperatorRequest instead
             stringToBytes32(jobId),
