@@ -35,8 +35,8 @@ contract ConsumerContract is ChainlinkClient, ConfirmedOwner {
     /**
      * @notice Creates a Chainlink request to retrieve the number of tweets from the given parameters.
      * @param from The user to search for tweets.
-     * @param startTime The UNIX timestamp from which the search begins.
-     * @param endTime The UNIX timestamp at which the search ends.
+     * @param startTime The UNIX timestamp (GMT) from which the search begins.
+     * @param endTime The UNIX timestamp (GMT) at which the search ends.
      * @dev uint32 is sufficient to hold a date in UNIX Timestamp format until Feb 07 2106
      * @return requestId the request ID of the new Chainlink request.
      */
