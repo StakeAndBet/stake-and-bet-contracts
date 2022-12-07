@@ -3,7 +3,9 @@
 pragma solidity ^0.8.16;
 
 import "chainlink/contracts/src/v0.8/ChainlinkClient.sol";
-import "chainlink/contracts/src/v0.8/ConfirmedOwner.sol";
+import "openzeppelin-contracts/access/Ownable.sol";
+import "openzeppelin-contracts/access/AccessControl.sol";
+// import "chainlink/contracts/src/v0.8/ConfirmedOwner.sol";
 
 import {BetManager} from "./BetManager.sol";
 
@@ -12,36 +14,43 @@ import {BetManager} from "./BetManager.sol";
  * @author Stake&Bet stakeandbet@proton.me
  * @notice This contract call the associated external adapter to retrieve a tweet count
  */
-contract ApiConsumer is ChainlinkClient, ConfirmedOwner {
+contract ApiConsumer is ChainlinkClient, AccessControl, Ownable {
     using Chainlink for Chainlink.Request;
 
     BetManager public betManager;
 
     string public jobId;
-    uint256 private constant ORACLE_PAYMENT = 1 * LINK_DIVISIBILITY; // 1 * 10**18
+    uint256 private constant ORACLE_PAYMENT = (1 * LINK_DIVISIBILITY) / 10; // 1 * 10**18 / 10
+
+    mapping(bytes32 => uint256) public tweetCountPerSessionId;
+    mapping(bytes32 => bytes32) public sessionIdPerRequestId;
+
+    bytes32 public constant TWEET_COUNT_REQUESTER_ROLE =
+        keccak256("TWEET_COUNT_REQUESTER_ROLE");
 
     event TweetCountFullfilled(
         bytes32 indexed requestId,
         bytes32 indexed sessionId,
         uint256 _tweetCount
     );
+    event NewBetManager(address oldBetManager, address newBetManager);
 
-    mapping(bytes32 => uint256) public tweetCountPerSessionId;
-    mapping(bytes32 => bytes32) public sessionIdPerRequestId;
-
-    constructor() ConfirmedOwner(msg.sender) {
+    constructor() {
         setChainlinkToken(0x326C977E6efc84E512bB9C30f76E30c160eD06FB);
         setChainlinkOracle(0xBb3875718A107B7fcC04935eB7e3fFb26820E0B8);
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
     /**
      * @notice Sets the jobId for the Chainlink request.
      * @param newJobId The jobId for the Chainlink request.
      */
-    function setJobId(string memory newJobId) public onlyOwner {
+    function setJobId(
+        string memory newJobId
+    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
         require(
             bytes(newJobId).length == 32,
-            "JobId must be 32 characters length"
+            "ApiConsumer: JobId must be 32 characters length"
         );
         jobId = newJobId;
     }
@@ -59,25 +68,33 @@ contract ApiConsumer is ChainlinkClient, ConfirmedOwner {
         string memory from,
         uint32 startTime,
         uint32 endTime
-    ) public onlyOwner returns (bytes32 requestId) {
-        require(startTime < endTime, "Start time can't be older than end time");
-        // require(
-        //     block.timestamp - uint256(startTime) > 7 days,
-        //     "Start time can't be older than 7 days"
-        // );
-        require(bytes(from).length > 0, "Requested twitter ID can't be empty");
+    ) public onlyRole(TWEET_COUNT_REQUESTER_ROLE) returns (bytes32 requestId) {
+        require(
+            startTime < endTime,
+            "ApiConsumer: Start time can't be older than end time"
+        );
+        require(
+            startTime % 1 days == 0,
+            "ApiConsumer: Start timestamp must be at the beginning of a day"
+        );
+        require(
+            uint32(block.timestamp - 7 days) <= startTime,
+            "ApiConsumer: Start time can't be older than 7 days"
+        );
+        require(
+            bytes(from).length > 0,
+            "ApiConsumer: Requested twitter ID can't be empty"
+        );
         sessionIdPerRequestId[requestId] = sessionId;
-        Chainlink.Request memory req = buildChainlinkRequest( // Last Chainlink version use buildOperatorRequest instead
-            stringToBytes32(jobId),
+        Chainlink.Request memory req = buildChainlinkRequest(
+            _stringToBytes32(jobId),
             address(this),
             this.fulfill.selector
         );
-
         req.add("from", from);
         req.addUint("startTime", startTime);
         req.addUint("endTime", endTime);
-        // No need extra parameters for this job. Send the request
-        return sendChainlinkRequest(req, ORACLE_PAYMENT); // Last Chainlink version use sendOperatorRequest instead
+        return sendChainlinkRequest(req, ORACLE_PAYMENT);
     }
 
     /**
@@ -90,16 +107,10 @@ contract ApiConsumer is ChainlinkClient, ConfirmedOwner {
         uint256 newTweetCount
     ) public recordChainlinkFulfillment(requestId) {
         bytes32 sessionId = sessionIdPerRequestId[requestId];
-        emit TweetCountFullfilled(
-            requestId,
-            sessionId,
-            newTweetCount
-        );
-        tweetCountPerSessionId[
-            sessionId
-        ] = newTweetCount;
+        emit TweetCountFullfilled(requestId, sessionId, newTweetCount);
+        tweetCountPerSessionId[sessionId] = newTweetCount;
         // CALL BETMANAGER
-        
+
         bool success = betManager.settleSession(sessionId, newTweetCount);
         require(success, "BetManager failed to settle session");
     }
@@ -129,45 +140,52 @@ contract ApiConsumer is ChainlinkClient, ConfirmedOwner {
     /**
      *   @notice Allows the owner to withdraw LINK tokens
      */
-    function withdrawLink() public onlyOwner {
+    function withdrawLink() public onlyRole(DEFAULT_ADMIN_ROLE) {
         LinkTokenInterface link = LinkTokenInterface(chainlinkTokenAddress());
         require(
             link.transfer(msg.sender, link.balanceOf(address(this))),
-            "Unable to transfer"
+            "ApiConsumer: Unable to transfer"
         );
     }
 
     /**
      *   @notice Allows the owner to withdraw ETH
      */
-    function withdrawBalance() public onlyOwner {
-        payable(msg.sender).transfer(address(this).balance);
+    function withdrawBalance(
+        address payable to
+    ) public payable onlyRole(DEFAULT_ADMIN_ROLE) {
+        // Call returns a boolean value indicating success or failure.
+        // This is the current recommended method to use.
+        (bool sent, ) = to.call{value: msg.value}("");
+        require(sent, "ApiConsumer: Failed to send Ether");
     }
 
-    // function stringToBytes32(
-    //     string memory source
-    // ) private pure returns (bytes32 result) {
-    //     bytes memory tempEmptyStringTest = bytes(source);
-    //     if (tempEmptyStringTest.length == 0) {
-    //         return 0x0;
-    //     }
+    // SLITHER NOT OK WITH onlyRole(DEFAULT_ADMIN_ROLE)
 
-    //     assembly {
-    //         // solhint-disable-line no-inline-assembly
-    //         result := mload(add(source, 32))
-    //     }
-    // }
+    function setBetManager(
+        address newBetManager
+    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(
+            newBetManager != address(0),
+            "ApiConsumer: BetManager address can't be 0x0"
+        );
+        require(
+            newBetManager != address(betManager),
+            "ApiConsumer: BetManager address must be different from current one"
+        );
+
+        address oldBetManager = address(betManager);
+        _revokeRole(TWEET_COUNT_REQUESTER_ROLE, oldBetManager);
+        betManager = BetManager(newBetManager);
+        grantRole(TWEET_COUNT_REQUESTER_ROLE, newBetManager);
+        emit NewBetManager(oldBetManager, newBetManager);
+    }
 
     // This function takes a string and returns a bytes32 representation of it.
-    function stringToBytes32(
+    function _stringToBytes32(
         string memory input
-    ) public pure returns (bytes32) {
+    ) internal pure returns (bytes32) {
         bytes32 stringInBytes32 = bytes32(bytes(input));
         return stringInBytes32;
-    }
-
-    function setBetManagerContract(address _betManager) public onlyOwner {
-        require(_betManager != address(0), "BetManager address can't be 0x0");
-        betManager = BetManager(_betManager);
     }
 }
