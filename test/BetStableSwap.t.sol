@@ -81,7 +81,8 @@ contract BetStableSwapTest is Test {
 
   function test_burnBetTokenForStableToken(uint256 amount) public {
     vm.assume(
-      amount > 0 && amount <= type(uint256).max / betStableSwap.SWAP_RATIO()
+      amount > betStableSwap.SWAP_RATIO() &&
+        amount <= type(uint256).max / betStableSwap.SWAP_RATIO()
     );
     _mintStableToken(account1, amount);
     vm.startPrank(account1);
@@ -109,7 +110,7 @@ contract BetStableSwapTest is Test {
   function test_burn0BetTokenForStableToken() public {
     vm.startPrank(account1);
     betToken.approve(address(betStableSwap), 10**decimals);
-    vm.expectRevert("BetStableSwap: Amount must be greater than 0");
+    vm.expectRevert("BetStableSwap: Amount must be greater than SWAP_RATIO");
     betStableSwap.burnBetTokenForStableToken(0);
     vm.stopPrank();
 

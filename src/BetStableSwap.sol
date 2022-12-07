@@ -4,7 +4,6 @@ pragma solidity ^0.8.16;
 import {BetToken} from "./BetToken.sol";
 import "openzeppelin-contracts/token/ERC20/IERC20.sol";
 import "openzeppelin-contracts/token/ERC20/utils/SafeERC20.sol";
-import "openzeppelin-contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 /**
  * @author  stakeandbet@proton.me
@@ -27,7 +26,6 @@ contract BetStableSwap {
   BetToken public betToken;
 
   // The other token that can be swapped for BetToken
-  // It must have the same number of decimals as BetToken
   IERC20 public stableToken;
 
   // 1 StableToken = 5 BetToken
@@ -63,8 +61,11 @@ contract BetStableSwap {
    * @param amount uint256 The amount of stable tokens to deposit
    */
   function burnBetTokenForStableToken(uint256 amount) external {
-    require(amount > 0, "BetStableSwap: Amount must be greater than 0");
+    require(
+      amount > SWAP_RATIO,
+      "BetStableSwap: Amount must be greater than SWAP_RATIO"
+    );
     betToken.burnFrom(msg.sender, amount);
-    stableToken.safeTransfer(msg.sender, amount / 5);
+    stableToken.safeTransfer(msg.sender, amount / SWAP_RATIO);
   }
 }
