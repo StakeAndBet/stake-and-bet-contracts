@@ -9,10 +9,6 @@ import {BetStableSwap} from "../src/BetStableSwap.sol";
 contract DummyStableToken is ERC20 {
   constructor() ERC20("Dummy Stable Token", "DST") {}
 
-  function decimals() public pure override returns (uint8) {
-    return 6;
-  }
-
   function mint(address account, uint256 amount) public {
     _mint(account, amount);
   }
@@ -25,14 +21,11 @@ contract BetStableSwapTest is Test {
   address account1 = address(0x1);
   address account2 = address(0x2);
 
+  uint8 decimals = 18;
+
   BetToken betToken;
   BetStableSwap betStableSwap;
   DummyStableToken stableToken;
-
-  uint8 decimals = 6;
-
-  //   event SwappedStableTokenToBetToken(address indexed user, uint256 amount);
-  //   event SwappedBetTokenToStableToken(address indexed user, uint256 amount);
 
   function setUp() public {
     vm.prank(stableTokenOwner);
@@ -42,7 +35,7 @@ contract BetStableSwapTest is Test {
     betToken = new BetToken();
 
     vm.prank(betStableSwapOwner);
-    betStableSwap = new BetStableSwap(betToken, stableToken);
+    betStableSwap = new BetStableSwap(address(betToken), address(stableToken));
 
     vm.startPrank(betTokenOwner);
     betToken.grantRole(betToken.MINTER_ROLE(), address(betStableSwap));
@@ -63,8 +56,6 @@ contract BetStableSwapTest is Test {
     vm.startPrank(account1);
     stableToken.approve(address(betStableSwap), amount);
     uint256 betTokenSupplyBefore = betToken.totalSupply();
-    // vm.expectEmit(true, false, false, true);
-    // emit SwappedStableTokenToBetToken(account1, amount);
     betStableSwap.depositStableTokenForBetToken(amount);
     uint256 betTokenSupplyAfter = betToken.totalSupply();
     vm.stopPrank();
@@ -79,7 +70,7 @@ contract BetStableSwapTest is Test {
 
   function test_deposit0StableTokenForBetToken() public {
     vm.startPrank(account1);
-    stableToken.approve(address(betStableSwap), 10**6);
+    stableToken.approve(address(betStableSwap), 10**decimals);
     vm.expectRevert("BetStableSwap: Amount must be greater than 0");
     betStableSwap.depositStableTokenForBetToken(0);
     vm.stopPrank();
@@ -90,13 +81,12 @@ contract BetStableSwapTest is Test {
 
   function test_burnBetTokenForStableToken(uint256 amount) public {
     vm.assume(
-      amount > 0 && amount <= type(uint256).max / betStableSwap.SWAP_RATIO()
+      amount > betStableSwap.SWAP_RATIO() &&
+        amount <= type(uint256).max / betStableSwap.SWAP_RATIO()
     );
     _mintStableToken(account1, amount);
     vm.startPrank(account1);
     stableToken.approve(address(betStableSwap), amount);
-    // vm.expectEmit(true, false, false, true);
-    // emit SwappedStableTokenToBetToken(account1, amount);
     betStableSwap.depositStableTokenForBetToken(amount);
 
     betToken.approve(
@@ -119,8 +109,8 @@ contract BetStableSwapTest is Test {
 
   function test_burn0BetTokenForStableToken() public {
     vm.startPrank(account1);
-    betToken.approve(address(betStableSwap), 10**6);
-    vm.expectRevert("BetStableSwap: Amount must be greater than 0");
+    betToken.approve(address(betStableSwap), 10**decimals);
+    vm.expectRevert("BetStableSwap: Amount must be greater than SWAP_RATIO");
     betStableSwap.burnBetTokenForStableToken(0);
     vm.stopPrank();
 

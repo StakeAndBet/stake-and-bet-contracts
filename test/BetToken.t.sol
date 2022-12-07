@@ -10,7 +10,7 @@ contract BetTokenTest is Test {
   address account2 = address(0x2);
   address betTokenMinter = address(0x3);
 
-  uint8 decimals = 6;
+  uint8 decimals = 18;
 
   BetToken token;
 

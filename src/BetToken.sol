@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.16;
 
-import "openzeppelin-contracts/token/ERC20/ERC20.sol";
 import "openzeppelin-contracts/token/ERC20/presets/ERC20PresetMinterPauser.sol";
 import "openzeppelin-contracts/access/Ownable.sol";
 
@@ -13,14 +12,6 @@ contract BetToken is ERC20PresetMinterPauser, Ownable {
   event RemovedFromWhitelist(address indexed account);
 
   constructor() ERC20PresetMinterPauser("Stake & Bet Token", "SAB") {}
-
-  /**
-   * @notice  Set decimals to 6 to match mainstream stablecoins
-   * @return  uint8  .
-   */
-  function decimals() public view virtual override returns (uint8) {
-    return 6;
-  }
 
   /**
    * @notice Checks if the `from` or `to` addresses of the transfer are whitelisted/owner before the transfer is executed
