@@ -34,6 +34,7 @@ contract BetManager is AccessControl {
   uint256 public constant TOKEN_AMOUNT_PER_BET = 1 ether; // 1 betToken
   uint256 public immutable UNITS_PER_TOKEN = 1;
   uint256 private constant SHARE_DIVISOR = 10000;
+  uint256 public constant MAX_TOKENS_PER_SESSION = 1000 ether; // 1000 betToken
 
   uint256 public constant WINNER_SHARE = 8000; // 80%
   uint256 public constant STACKING_SHARE = 750; // 7.5%
@@ -87,7 +88,8 @@ contract BetManager is AccessControl {
   event BettingSessionCreated(
     bytes32 indexed sessionId,
     uint32 startTimestamp,
-    uint32 endTimestamp
+    uint32 endTimestamp,
+    string twitterUserId
   );
 
   event VerifiedTwitterUserIdAdded(string twitterUserId);
@@ -130,7 +132,7 @@ contract BetManager is AccessControl {
     uint32 startTimestamp,
     uint32 endTimestamp,
     string calldata twitterUserId
-  ) external onlyRole(BETTING_SESSION_MANAGER_ROLE) {
+  ) external onlyRole(BETTING_SESSION_MANAGER_ROLE) returns (bytes32) {
     require(
       startTimestamp > block.timestamp,
       "BetManager: Start timestamp must be in the future"
@@ -140,7 +142,7 @@ contract BetManager is AccessControl {
       "BetManager: Start timestamp must be at the beginning of a day"
     );
     require(
-      endTimestamp > startTimestamp + 1 days - 1,
+      endTimestamp == startTimestamp + 1 days - 1 seconds,
       "BetManager: End timestamp must be at the end of the day"
     );
     require(
@@ -153,12 +155,10 @@ contract BetManager is AccessControl {
       endTimestamp
     );
     require(
-      bettingSessions[sessionId].startTimestamp == 0,
+      bettingSessions[sessionId].startTimestamp != startTimestamp &&
+        stringToTwitterId(bettingSessions[sessionId].twitterUserId) !=
+        stringToTwitterId(twitterUserId),
       "BetManager: Betting session already exists"
-    );
-    require(
-      bettingSessions[sessionId].state == SessionState.STARTED,
-      "BetManager: Betting session must be in state STARTED"
     );
     bettingSessions[sessionId] = BettingSession({
       startTimestamp: startTimestamp,
@@ -168,7 +168,13 @@ contract BetManager is AccessControl {
       totalTokensBet: 0,
       state: SessionState.STARTED
     });
-    emit BettingSessionCreated(sessionId, startTimestamp, endTimestamp);
+    emit BettingSessionCreated(
+      sessionId,
+      startTimestamp,
+      endTimestamp,
+      twitterUserId
+    );
+    return sessionId;
   }
 
   function placeBets(bytes32 sessionId, uint256[] calldata bets) external {
@@ -189,9 +195,9 @@ contract BetManager is AccessControl {
     for (uint256 i = 0; i < bets.length; i++) {
       recordOneUserBet(sessionId, bets[i], msg.sender, TOKEN_AMOUNT_PER_BET);
     }
+    betToken.safeTransferFrom(msg.sender, address(this), totalTokensBet);
     emit BetsPlaced(sessionId, msg.sender, bets);
     bettingSessions[sessionId].totalTokensBet += totalTokensBet;
-    betToken.safeTransferFrom(msg.sender, address(this), totalTokensBet);
   }
 
   function endBettingSession(bytes32 sessionId)
@@ -263,6 +269,11 @@ contract BetManager is AccessControl {
     users[user].units += ((TOKEN_AMOUNT_PER_BET * UNITS_PER_TOKEN) / 1 ether);
     users[user].totalTokensBet += tokenBetAmount;
     users[user].totalTokensBetPerSessionId[sessionId] += tokenBetAmount;
+    require(
+      users[user].totalTokensBetPerSessionId[sessionId] <=
+        MAX_TOKENS_PER_SESSION,
+      "BetManager: Max tokens per session exceeded"
+    );
   }
 
   function setApiConsumer(address newApiConsumer)
@@ -392,5 +403,13 @@ contract BetManager is AccessControl {
     returns (bytes32 result)
   {
     result = keccak256(abi.encodePacked(source));
+  }
+
+  function totalTokensBetPerSessionIdPerUser(bytes32 sessionId, address user)
+    external
+    view
+    returns (uint256)
+  {
+    return users[user].totalTokensBetPerSessionId[sessionId];
   }
 }
