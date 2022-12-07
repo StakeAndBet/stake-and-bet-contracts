@@ -203,8 +203,9 @@ contract BetManager is AccessControl {
   function endBettingSession(bytes32 sessionId)
     external
     onlyRole(BETTING_SESSION_MANAGER_ROLE)
+    returns (bytes32)
   {
-    BettingSession memory session = bettingSessions[sessionId];
+    BettingSession storage session = bettingSessions[sessionId];
     require(
       session.startTimestamp != 0,
       "BetManager: Betting session does not exist"
@@ -230,7 +231,9 @@ contract BetManager is AccessControl {
       session.startTimestamp,
       session.endTimestamp
     );
+    // TODO: Check link token balance of api consumer
     require(sessionRequestId != 0, "BetManager: Requesting tweet count failed");
+    return sessionRequestId;
   }
 
   function addVerifiedTwitterUserId(string calldata verifiedTwitterUserId)

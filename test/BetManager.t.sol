@@ -1,5 +1,6 @@
 pragma solidity ^0.8.16;
 import "forge-std/Test.sol";
+import "forge-std/console.sol";
 import "openzeppelin-contracts/token/ERC20/ERC20.sol";
 
 import {BetToken} from "../src/BetToken.sol";
@@ -10,6 +11,9 @@ contract BetManagerTest is Test {
   BetToken betToken;
   ApiConsumer apiConsumer;
   BetManager betManager;
+
+  address linkAddress = 0x326C977E6efc84E512bB9C30f76E30c160eD06FB;
+  IERC20 linkToken;
 
   uint8 decimals = 18;
 
@@ -48,9 +52,19 @@ contract BetManagerTest is Test {
 
     betToken.grantRole(betToken.MINTER_ROLE(), betTokenMinter);
     betToken.addToWhitelist(address(betManager));
-    apiConsumer.grantRole(
-      apiConsumer.TWEET_COUNT_REQUESTER_ROLE(),
-      address(betManager)
+    apiConsumer.setBetManager(address(betManager));
+    betManager.grantRole(
+      betManager.BETTING_SESSION_SETTLER_ROLE(),
+      address(apiConsumer)
+    );
+    vm.stopPrank();
+
+    linkToken = IERC20(linkAddress);
+    // Steal link
+    vm.startPrank(0xE4dDb4233513498b5aa79B98bEA473b01b101a67);
+    linkToken.transfer(
+      address(apiConsumer),
+      linkToken.balanceOf(0xE4dDb4233513498b5aa79B98bEA473b01b101a67)
     );
     vm.stopPrank();
   }
@@ -448,9 +462,15 @@ contract BetManagerTest is Test {
     betManager.endBettingSession(sessionId);
 
     vm.warp(1670544000);
-    betManager.endBettingSession(sessionId);
+    bytes32 sessionRequestId = betManager.endBettingSession(sessionId);
+    assertTrue(sessionRequestId != bytes32(0));
 
-    // betManager.endBettingSession(sessionId);
+    vm.stopPrank();
+
+    // Simulate Chainlink response
+    address oracle = apiConsumer.chainlinkOracleAddr();
+    vm.startPrank(oracle);
+    apiConsumer.fulfill(sessionRequestId, 20);
     vm.stopPrank();
   }
 
