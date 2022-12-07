@@ -13,6 +13,9 @@ function getRemappings() {
 }
 
 const config: HardhatUserConfig = {
+  networks: {
+    hardhat: {},
+  },
   solidity: {
     compilers: [
       {

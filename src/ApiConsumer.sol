@@ -5,6 +5,8 @@ pragma solidity ^0.8.16;
 import "chainlink/contracts/src/v0.8/ChainlinkClient.sol";
 import "chainlink/contracts/src/v0.8/ConfirmedOwner.sol";
 
+import {BetManager} from "./BetManager.sol";
+
 /**
  * @title Consumer contract
  * @author Stake&Bet stakeandbet@proton.me
@@ -13,11 +15,19 @@ import "chainlink/contracts/src/v0.8/ConfirmedOwner.sol";
 contract ApiConsumer is ChainlinkClient, ConfirmedOwner {
     using Chainlink for Chainlink.Request;
 
-    uint256 public tweetCount;
+    BetManager public betManager;
+
     string public jobId;
     uint256 private constant ORACLE_PAYMENT = 1 * LINK_DIVISIBILITY; // 1 * 10**18
 
-    event TweetCountFullfilled(bytes32 indexed requestId, uint256 _tweetCount);
+    event TweetCountFullfilled(
+        bytes32 indexed requestId,
+        bytes32 indexed sessionId,
+        uint256 _tweetCount
+    );
+
+    mapping(bytes32 => uint256) public tweetCountPerSessionId;
+    mapping(bytes32 => bytes32) public sessionIdPerRequestId;
 
     constructor() ConfirmedOwner(msg.sender) {
         setChainlinkToken(0x326C977E6efc84E512bB9C30f76E30c160eD06FB);
@@ -45,6 +55,7 @@ contract ApiConsumer is ChainlinkClient, ConfirmedOwner {
      * @return requestId the request ID of the new Chainlink request.
      */
     function requestTweetCount(
+        bytes32 sessionId,
         string memory from,
         uint32 startTime,
         uint32 endTime
@@ -55,6 +66,7 @@ contract ApiConsumer is ChainlinkClient, ConfirmedOwner {
         //     "Start time can't be older than 7 days"
         // );
         require(bytes(from).length > 0, "Requested twitter ID can't be empty");
+        sessionIdPerRequestId[requestId] = sessionId;
         Chainlink.Request memory req = buildChainlinkRequest( // Last Chainlink version use buildOperatorRequest instead
             stringToBytes32(jobId),
             address(this),
@@ -77,8 +89,19 @@ contract ApiConsumer is ChainlinkClient, ConfirmedOwner {
         bytes32 requestId,
         uint256 newTweetCount
     ) public recordChainlinkFulfillment(requestId) {
-        emit TweetCountFullfilled(requestId, newTweetCount);
-        tweetCount = newTweetCount;
+        bytes32 sessionId = sessionIdPerRequestId[requestId];
+        emit TweetCountFullfilled(
+            requestId,
+            sessionId,
+            newTweetCount
+        );
+        tweetCountPerSessionId[
+            sessionId
+        ] = newTweetCount;
+        // CALL BETMANAGER
+        
+        bool success = betManager.settleSession(sessionId, newTweetCount);
+        require(success, "BetManager failed to settle session");
     }
 
     /*
@@ -141,5 +164,10 @@ contract ApiConsumer is ChainlinkClient, ConfirmedOwner {
     ) public pure returns (bytes32) {
         bytes32 stringInBytes32 = bytes32(bytes(input));
         return stringInBytes32;
+    }
+
+    function setBetManagerContract(address _betManager) public onlyOwner {
+        require(_betManager != address(0), "BetManager address can't be 0x0");
+        betManager = BetManager(_betManager);
     }
 }

@@ -4,6 +4,7 @@ cache/
 out/
 lcov.info
 .env
+lib/
 
 # JS
 node_modules/

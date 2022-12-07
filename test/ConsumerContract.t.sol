@@ -50,21 +50,21 @@ contract ApiConsumerTest is Test {
     }
 
     // Should emit an event ChainlinkRequested with the request ID
-    function test_requestTweetCount() public {
-        vm.expectRevert("Only callable by owner");
-        consumer.requestTweetCount("elonmusk", 1670348221, 1670348222);
-        vm.startPrank(owner);
-        consumer.setJobId("a7e91a606f54485cb6ce7749ffa2478a");
-        vm.expectRevert("Start time can't be older than end time");
-        consumer.requestTweetCount("elonmusk", 1670348221, 1000348222);
-        // vm.expectRevert("Start time can't be older than 7 days");
-        // consumer.requestTweetCount("elonmusk", 1669590089, 1670348221);
-        consumer.requestTweetCount("elonmusk", 1670348221, 1670348222);
-        vm.expectEmit(false, false, false, true);
-        emit ChainlinkRequested(dummyRequestId);
-        consumer.requestTweetCount("elonmusk", 1670348221, 1670348222);
-        vm.stopPrank();
-    }
+    // function test_requestTweetCount() public {
+    //     vm.expectRevert("Only callable by owner");
+    //     consumer.requestTweetCount("elonmusk", 1670348221, 1670348222);
+    //     vm.startPrank(owner);
+    //     consumer.setJobId("a7e91a606f54485cb6ce7749ffa2478a");
+    //     vm.expectRevert("Start time can't be older than end time");
+    //     consumer.requestTweetCount("elonmusk", 1670348221, 1000348222);
+    //     // vm.expectRevert("Start time can't be older than 7 days");
+    //     // consumer.requestTweetCount("elonmusk", 1669590089, 1670348221);
+    //     consumer.requestTweetCount("elonmusk", 1670348221, 1670348222);
+    //     vm.expectEmit(false, false, false, true);
+    //     emit ChainlinkRequested(dummyRequestId);
+    //     consumer.requestTweetCount("elonmusk", 1670348221, 1670348222);
+    //     vm.stopPrank();
+    // }
 
     // =========== UTILITY ========== //
 
