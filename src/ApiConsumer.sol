@@ -10,11 +10,11 @@ import "chainlink/contracts/src/v0.8/ConfirmedOwner.sol";
  * @author Stake&Bet stakeandbet@proton.me
  * @notice This contract call the associated external adapter to retrieve a tweet count
  */
-contract ConsumerContract is ChainlinkClient, ConfirmedOwner {
+contract ApiConsumer is ChainlinkClient, ConfirmedOwner {
     using Chainlink for Chainlink.Request;
 
     uint256 public tweetCount;
-    string private jobId;
+    string public jobId;
     uint256 private constant ORACLE_PAYMENT = 1 * LINK_DIVISIBILITY; // 1 * 10**18
 
     event TweetCountFullfilled(bytes32 indexed requestId, uint256 _tweetCount);
@@ -29,6 +29,10 @@ contract ConsumerContract is ChainlinkClient, ConfirmedOwner {
      * @param newJobId The jobId for the Chainlink request.
      */
     function setJobId(string memory newJobId) public onlyOwner {
+        require(
+            bytes(newJobId).length == 32,
+            "JobId must be 32 characters length"
+        );
         jobId = newJobId;
     }
 
@@ -44,7 +48,13 @@ contract ConsumerContract is ChainlinkClient, ConfirmedOwner {
         string memory from,
         uint32 startTime,
         uint32 endTime
-    ) public returns (bytes32 requestId) {
+    ) public onlyOwner returns (bytes32 requestId) {
+        require(startTime < endTime, "Start time can't be older than end time");
+        // require(
+        //     block.timestamp - uint256(startTime) > 7 days,
+        //     "Start time can't be older than 7 days"
+        // );
+        require(bytes(from).length > 0, "Requested twitter ID can't be empty");
         Chainlink.Request memory req = buildChainlinkRequest( // Last Chainlink version use buildOperatorRequest instead
             stringToBytes32(jobId),
             address(this),
@@ -111,17 +121,25 @@ contract ConsumerContract is ChainlinkClient, ConfirmedOwner {
         payable(msg.sender).transfer(address(this).balance);
     }
 
-    function stringToBytes32(
-        string memory source
-    ) private pure returns (bytes32 result) {
-        bytes memory tempEmptyStringTest = bytes(source);
-        if (tempEmptyStringTest.length == 0) {
-            return 0x0;
-        }
+    // function stringToBytes32(
+    //     string memory source
+    // ) private pure returns (bytes32 result) {
+    //     bytes memory tempEmptyStringTest = bytes(source);
+    //     if (tempEmptyStringTest.length == 0) {
+    //         return 0x0;
+    //     }
 
-        assembly {
-            // solhint-disable-line no-inline-assembly
-            result := mload(add(source, 32))
-        }
+    //     assembly {
+    //         // solhint-disable-line no-inline-assembly
+    //         result := mload(add(source, 32))
+    //     }
+    // }
+
+    // This function takes a string and returns a bytes32 representation of it.
+    function stringToBytes32(
+        string memory input
+    ) public pure returns (bytes32) {
+        bytes32 stringInBytes32 = bytes32(bytes(input));
+        return stringInBytes32;
     }
 }
