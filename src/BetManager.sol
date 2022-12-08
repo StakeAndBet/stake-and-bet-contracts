@@ -32,7 +32,7 @@ contract BetManager is AccessControl {
   address public teamAddress;
 
   uint256 public constant TOKEN_AMOUNT_PER_BET = 1 ether; // 1 betToken
-  uint256 public immutable UNITS_PER_TOKEN = 1;
+  uint256 public constant UNITS_PER_TOKEN = 1;
   uint256 private constant SHARE_DIVISOR = 10000;
   uint256 public constant MAX_TOKENS_PER_SESSION = 1000 ether; // 1000 betToken
 
@@ -91,10 +91,13 @@ contract BetManager is AccessControl {
     uint32 endTimestamp,
     string twitterUserId
   );
-
+  event BettingSessionEnded(bytes32 indexed sessionId);
+  event BettingSessionSettled(bytes32 indexed sessionId, uint256 betResult);
+  event TokenClaimed(address indexed user, uint256 tokenAmount);
   event VerifiedTwitterUserIdAdded(string twitterUserId);
   event VerifiedTwitterUserIdRemoved(string twitterUserId);
   event NewApiConsumer(address oldApiConsumer, address newApiConsumer);
+  event NewTeamAddress(address oldTeamAddress, address newTeamAddress);
 
   constructor(
     address _betToken,
@@ -195,9 +198,9 @@ contract BetManager is AccessControl {
     for (uint256 i = 0; i < bets.length; i++) {
       recordOneUserBet(sessionId, bets[i], msg.sender, TOKEN_AMOUNT_PER_BET);
     }
-    betToken.safeTransferFrom(msg.sender, address(this), totalTokensBet);
-    emit BetsPlaced(sessionId, msg.sender, bets);
     bettingSessions[sessionId].totalTokensBet += totalTokensBet;
+    emit BetsPlaced(sessionId, msg.sender, bets);
+    betToken.safeTransferFrom(msg.sender, address(this), totalTokensBet);
   }
 
   function endBettingSession(bytes32 sessionId)
@@ -218,12 +221,6 @@ contract BetManager is AccessControl {
       session.state != SessionState.SETTLED,
       "BetManager: Betting session is already settled"
     );
-    // if (session.state != SessionState.RESULT_REQUESTED) {
-    //   if (apiConsumer.tweetCountPerSessionId(sessionId) != 0) {
-    //     session.state = SessionState.SETTLED;
-    //     return;
-    //   }
-    // }
     session.state = SessionState.RESULT_REQUESTED;
     bytes32 sessionRequestId = apiConsumer.requestTweetCount(
       sessionId,
@@ -233,6 +230,7 @@ contract BetManager is AccessControl {
     );
     // TODO: Check link token balance of api consumer
     require(sessionRequestId != 0, "BetManager: Requesting tweet count failed");
+    emit BettingSessionEnded(sessionId);
     return sessionRequestId;
   }
 
@@ -299,12 +297,13 @@ contract BetManager is AccessControl {
     emit NewApiConsumer(oldApiConsumer, newApiConsumer);
   }
 
+  // TODO: Gas optimization
   function settleSession(bytes32 sessionId, uint256 betResult)
     external
     onlyRole(BETTING_SESSION_SETTLER_ROLE)
     returns (bool)
   {
-    BettingSession memory session = bettingSessions[sessionId];
+    BettingSession storage session = bettingSessions[sessionId];
     require(
       session.state == SessionState.RESULT_REQUESTED,
       "BetManager: Betting session must be in state RESULT_REQUESTED"
@@ -325,24 +324,28 @@ contract BetManager is AccessControl {
       betResult
     ];
 
-    // Distribute winner shares to winners
-    for (uint256 i = 0; i < usersWhoWon.length; i++) {
-      address user = usersWhoWon[i];
+    if (usersWhoWon.length == 0) {
+      // No winners, distribute winner shares to stacking contract
+      betToken.safeTransfer(stackingContract, tokensForWinner);
+    } else {
+      // Distribute winner shares to winners
       uint256 tokensWon = tokensForWinner / usersWhoWon.length;
-      users[user].tokenToClaim += tokensWon;
-      users[user].totalTokensWon += tokensWon;
-      users[user].totalBetWon += 1;
+      for (uint256 i = 0; i < usersWhoWon.length; i++) {
+        address user = usersWhoWon[i];
+        users[user].tokenToClaim += tokensWon;
+        users[user].totalTokensWon += tokensWon;
+        users[user].totalBetWon += 1;
+      }
     }
-
     // Distribute stacking shares to stacking contract
     betToken.safeTransfer(stackingContract, tokensForStacking);
-
     // Distribute team shares to team
     betToken.safeTransfer(teamAddress, tokensForTeam);
 
     // Burn burn shares
     betToken.burn(tokensForBurn);
 
+    emit BettingSessionSettled(sessionId, betResult);
     return true;
   }
 
@@ -370,7 +373,9 @@ contract BetManager is AccessControl {
       newTeamAddress != address(0),
       "BetManager: Team address must be non-zero"
     );
+    address oldTeamAddress = teamAddress;
     teamAddress = newTeamAddress;
+    emit NewTeamAddress(oldTeamAddress, newTeamAddress);
   }
 
   function claimTokens() external {
@@ -380,7 +385,12 @@ contract BetManager is AccessControl {
     );
     uint256 tokensToClaim = users[msg.sender].tokenToClaim;
     users[msg.sender].tokenToClaim = 0;
+    emit TokenClaimed(msg.sender, tokensToClaim);
     betToken.safeTransfer(msg.sender, tokensToClaim);
+  }
+
+  function getTokenToClaim(address user) external view returns (uint256) {
+    return users[user].tokenToClaim;
   }
 
   function generateSessionId(

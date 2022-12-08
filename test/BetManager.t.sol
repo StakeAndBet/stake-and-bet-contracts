@@ -29,15 +29,24 @@ contract BetManagerTest is Test {
 
   uint256[] public bets;
 
+  event BetsPlaced(
+    bytes32 indexed sessionId,
+    address indexed user,
+    uint256[] bet
+  );
   event BettingSessionCreated(
     bytes32 indexed sessionId,
     uint32 startTimestamp,
     uint32 endTimestamp,
     string twitterUserId
   );
+  event BettingSessionEnded(bytes32 indexed sessionId);
+  event BettingSessionSettled(bytes32 indexed sessionId, uint256 betResult);
+  event TokenClaimed(address indexed user, uint256 tokenAmount);
   event VerifiedTwitterUserIdAdded(string twitterUserId);
   event VerifiedTwitterUserIdRemoved(string twitterUserId);
   event NewApiConsumer(address oldApiConsumer, address newApiConsumer);
+  event NewTeamAddress(address oldTeamAddress, address newTeamAddress);
 
   function setUp() public {
     vm.startPrank(adminAddress);
@@ -326,15 +335,15 @@ contract BetManagerTest is Test {
     uint256 afterBetter1Balance = betToken.balanceOf(better1);
     uint256 afterContractBalance = betToken.balanceOf(address(betManager));
 
-    (, uint256 units, uint256 totalTokenBet, , ) = betManager.users(better1);
-    uint256 totalTokenBetCurrentSession = betManager
+    (, uint256 units, uint256 totalTokensBet, , ) = betManager.users(better1);
+    uint256 totalTokensBetCurrentSession = betManager
       .totalTokensBetPerSessionIdPerUser(sessionId, better1);
 
     assertEq(
       units,
-      (betManager.UNITS_PER_TOKEN() * totalTokenBet) / 10**decimals
+      (betManager.UNITS_PER_TOKEN() * totalTokensBet) / 10**decimals
     );
-    assertEq(totalTokenBetCurrentSession, totalTokenBet);
+    assertEq(totalTokensBetCurrentSession, totalTokensBet);
     assertTrue(
       beforeBetter1Balance - afterBetter1Balance ==
         betManager.TOKEN_AMOUNT_PER_BET() * bets.length
@@ -355,17 +364,17 @@ contract BetManagerTest is Test {
     afterBetter1Balance = betToken.balanceOf(better1);
     afterContractBalance = betToken.balanceOf(address(betManager));
 
-    (, units, totalTokenBet, , ) = betManager.users(better1);
-    totalTokenBetCurrentSession = betManager.totalTokensBetPerSessionIdPerUser(
-      sessionId,
-      better1
-    );
+    (, units, totalTokensBet, , ) = betManager.users(better1);
+    totalTokensBetCurrentSession = betManager.totalTokensBetPerSessionIdPerUser(
+        sessionId,
+        better1
+      );
 
     assertEq(
       units,
-      (betManager.UNITS_PER_TOKEN() * totalTokenBet) / 10**decimals
+      (betManager.UNITS_PER_TOKEN() * totalTokensBet) / 10**decimals
     );
-    assertEq(totalTokenBetCurrentSession, totalTokenBet);
+    assertEq(totalTokensBetCurrentSession, totalTokensBet);
     assertTrue(
       beforeBetter1Balance - afterBetter1Balance ==
         betManager.TOKEN_AMOUNT_PER_BET() * bets.length
@@ -389,7 +398,7 @@ contract BetManagerTest is Test {
 
     // 1st real bet
     vm.startPrank(better1);
-    uint256 totalTokenBetOldSession = totalTokenBetCurrentSession;
+    uint256 totalTokensBetOldSession = totalTokensBetCurrentSession;
     delete bets;
     bets.push(20);
     bets.push(10);
@@ -400,19 +409,19 @@ contract BetManagerTest is Test {
     afterBetter1Balance = betToken.balanceOf(better1);
     afterContractBalance = betToken.balanceOf(address(betManager));
 
-    (, units, totalTokenBet, , ) = betManager.users(better1);
-    totalTokenBetCurrentSession = betManager.totalTokensBetPerSessionIdPerUser(
-      sessionId,
-      better1
-    );
+    (, units, totalTokensBet, , ) = betManager.users(better1);
+    totalTokensBetCurrentSession = betManager.totalTokensBetPerSessionIdPerUser(
+        sessionId,
+        better1
+      );
 
     assertEq(
       units,
-      (betManager.UNITS_PER_TOKEN() * totalTokenBet) / 10**decimals
+      (betManager.UNITS_PER_TOKEN() * totalTokensBet) / 10**decimals
     );
     assertEq(
-      totalTokenBetCurrentSession + totalTokenBetOldSession,
-      totalTokenBet
+      totalTokensBetCurrentSession + totalTokensBetOldSession,
+      totalTokensBet
     );
     assertTrue(
       beforeBetter1Balance - afterBetter1Balance ==
@@ -438,6 +447,15 @@ contract BetManagerTest is Test {
     );
     vm.stopPrank();
     _mintTokens(better1, 100000 * 10**decimals);
+    _mintTokens(better2, 100000 * 10**decimals);
+
+    vm.startPrank(better2);
+    bets.push(20);
+    bets.push(20);
+    betToken.approve(address(betManager), type(uint256).max);
+    betManager.placeBets(sessionId, bets);
+    delete bets;
+    vm.stopPrank();
 
     vm.startPrank(better1);
     bets.push(20);
@@ -462,15 +480,132 @@ contract BetManagerTest is Test {
     betManager.endBettingSession(sessionId);
 
     vm.warp(1670544000);
+    vm.expectEmit(true, false, false, true);
+    emit BettingSessionEnded(sessionId);
     bytes32 sessionRequestId = betManager.endBettingSession(sessionId);
     assertTrue(sessionRequestId != bytes32(0));
 
     vm.stopPrank();
 
-    // Simulate Chainlink response
+    // Simulate Chainlink response with winners
+    uint256 snapshot = vm.snapshot();
     address oracle = apiConsumer.chainlinkOracleAddr();
     vm.startPrank(oracle);
+    uint256 beforeSettleContractBalance = betToken.balanceOf(
+      address(betManager)
+    );
+    uint256 beforeSettleStackingBalance = betToken.balanceOf(
+      stackingContractAddress
+    );
+    uint256 beforeSettleBetTokenTotalSupply = betToken.totalSupply();
+    uint256 beforeSettleTeamBalance = betToken.balanceOf(teamAddress);
+    vm.expectEmit(true, false, false, true);
+    emit BettingSessionSettled(sessionId, 20);
     apiConsumer.fulfill(sessionRequestId, 20);
+    uint256 afterSettleContractBalance = betToken.balanceOf(
+      address(betManager)
+    );
+    uint256 afterSettleStackingBalance = betToken.balanceOf(
+      stackingContractAddress
+    );
+    uint256 afterSettleBetTokenTotalSupply = betToken.totalSupply();
+    uint256 afterSettleTeamBalance = betToken.balanceOf(teamAddress);
+    vm.stopPrank();
+
+    vm.prank(adminAddress);
+    vm.expectRevert("BetManager: Betting session is already settled");
+    betManager.endBettingSession(sessionId);
+
+    vm.prank(address(apiConsumer));
+    vm.expectRevert(
+      "BetManager: Betting session must be in state RESULT_REQUESTED"
+    );
+    betManager.settleSession(sessionId, 20);
+
+    assertTrue(
+      beforeSettleContractBalance - afterSettleContractBalance ==
+        1000000000000000000
+    );
+    assertTrue(
+      afterSettleStackingBalance - beforeSettleStackingBalance ==
+        375000000000000000
+    );
+    assertTrue(
+      afterSettleTeamBalance - beforeSettleTeamBalance == 250000000000000000
+    );
+    assertTrue(afterSettleBetTokenTotalSupply == 199999625000000000000000);
+    assertTrue(betManager.getTokenToClaim(better1) == 1333333333333333333);
+    assertTrue(betManager.getTokenToClaim(better2) == 2666666666666666666);
+
+    vm.startPrank(better1);
+    uint256 beforeBetter1Balance = betToken.balanceOf(better1);
+    vm.expectEmit(true, false, false, true);
+    emit TokenClaimed(better1, 1333333333333333333);
+    betManager.claimTokens();
+
+    assertEq(
+      betToken.balanceOf(better1),
+      1333333333333333333 + beforeBetter1Balance
+    );
+
+    vm.expectRevert("BetManager: No tokens to claim");
+    betManager.claimTokens();
+    vm.stopPrank();
+
+    // Simulate Chainlink response without winners
+    vm.revertTo(snapshot);
+    oracle = apiConsumer.chainlinkOracleAddr();
+    vm.startPrank(oracle);
+    beforeSettleContractBalance = betToken.balanceOf(address(betManager));
+    beforeSettleStackingBalance = betToken.balanceOf(stackingContractAddress);
+    beforeSettleBetTokenTotalSupply = betToken.totalSupply();
+    beforeSettleTeamBalance = betToken.balanceOf(teamAddress);
+    apiConsumer.fulfill(sessionRequestId, 0);
+    afterSettleContractBalance = betToken.balanceOf(address(betManager));
+    afterSettleStackingBalance = betToken.balanceOf(stackingContractAddress);
+    afterSettleBetTokenTotalSupply = betToken.totalSupply();
+    afterSettleTeamBalance = betToken.balanceOf(teamAddress);
+
+    vm.expectRevert("Source must be the oracle of the request");
+    apiConsumer.fulfill(sessionRequestId, 0);
+    vm.stopPrank();
+
+    (, , , , uint256 totalTokensBet, ) = betManager.bettingSessions(sessionId);
+
+    assertTrue(
+      afterSettleContractBalance + totalTokensBet == beforeSettleContractBalance
+    );
+    assertTrue(
+      afterSettleStackingBalance - beforeSettleStackingBalance ==
+        4375000000000000000
+    );
+    assertTrue(
+      afterSettleTeamBalance - beforeSettleTeamBalance == 250000000000000000
+    );
+    assertTrue(afterSettleBetTokenTotalSupply == 199999625000000000000000);
+    assertTrue(betManager.getTokenToClaim(better1) == 0);
+    assertTrue(betManager.getTokenToClaim(better2) == 0);
+  }
+
+  function test_bettingSessionStorage() public {}
+
+  function test_setTeamAddress() public {
+    // Unauthorized user
+    vm.expectRevert(
+      "AccessControl: account 0x7fa9385be102ac3eac297483dd6233d62b3e1496 is missing role 0x0000000000000000000000000000000000000000000000000000000000000000"
+    );
+    betManager.setTeamAddress(address(0x1999999));
+
+    vm.startPrank(adminAddress);
+    vm.expectRevert("BetManager: Team address must be non-zero");
+    betManager.setTeamAddress(address(0));
+
+    address oldTeamAddress = betManager.teamAddress();
+    address newTeamAddress = address(0x1999999);
+    vm.expectEmit(true, false, false, true);
+    emit NewTeamAddress(oldTeamAddress, newTeamAddress);
+    betManager.setTeamAddress(newTeamAddress);
+    assertEq(betManager.teamAddress(), newTeamAddress);
     vm.stopPrank();
   }
 
