@@ -18,18 +18,23 @@ import "openzeppelin-contracts/token/ERC20/utils/SafeERC20.sol";
  *     - User can deposit any amount of the other token and receive the amount * 5 of BetToken minted to their account.
  *     - User can deposit any amount of BetToken and receive the amount / 5 of the other token sent to their account. The BetToken is burned.
  */
-
 contract BetStableSwap {
+  /// -----------------------------------------------------------------------
+  /// Library usage
+  /// -----------------------------------------------------------------------
   using SafeERC20 for IERC20;
   using SafeERC20 for BetToken;
 
+  /// -----------------------------------------------------------------------
+  /// Constants
+  /// -----------------------------------------------------------------------
+  uint256 public constant SWAP_RATIO = 5; // 1 StableToken = 5 BetToken
+
+  /// -----------------------------------------------------------------------
+  /// Storage variables
+  /// -----------------------------------------------------------------------
   BetToken public betToken;
-
-  // The other token that can be swapped for BetToken
-  IERC20 public stableToken;
-
-  // 1 StableToken = 5 BetToken
-  uint256 public constant SWAP_RATIO = 5;
+  IERC20 public stableToken; // The other token that can be swapped for BetToken
 
   constructor(address _betToken, address _stableToken) {
     require(

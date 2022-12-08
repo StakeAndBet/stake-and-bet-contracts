@@ -1,3 +1,4 @@
+// pragma solidity ^0.8.16;
 pragma solidity ^0.8.16;
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
@@ -520,7 +521,7 @@ contract BetManagerTest is Test {
     vm.expectRevert(
       "BetManager: Betting session must be in state RESULT_REQUESTED"
     );
-    betManager.settleSession(sessionId, 20);
+    betManager.settleBettingSession(sessionId, 20);
 
     assertTrue(
       beforeSettleContractBalance - afterSettleContractBalance ==
@@ -606,6 +607,12 @@ contract BetManagerTest is Test {
     emit NewTeamAddress(oldTeamAddress, newTeamAddress);
     betManager.setTeamAddress(newTeamAddress);
     assertEq(betManager.teamAddress(), newTeamAddress);
+
+    vm.expectRevert(
+      "BetManager: Team address must be different from current address"
+    );
+    betManager.setTeamAddress(newTeamAddress);
+
     vm.stopPrank();
   }
 
