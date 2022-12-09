@@ -32,7 +32,6 @@ contract BetPoolTest is Test {
 
     betToken.addToWhitelist(address(betPool));
     betToken.grantRole(betToken.MINTER_ROLE(), adminAddress);
-    betToken.grantRole(betToken.MINTER_ROLE(), address(betPool));
     betPool.setRewardDistributor(address(betManager), true);
 
     betToken.mint(address(this), 1000 ether);

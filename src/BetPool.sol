@@ -67,7 +67,6 @@ contract BetPool is Multicall, SelfPermit, Ownable {
 
   /// @notice The amount of tokens staked by an account
   mapping(address => uint256) public balanceOf;
-  mapping(address => uint256) public unitsOf;
   /// @notice The rewardPerToken value when an account last staked/withdrew/withdrew rewards
   mapping(address => uint256) public userRewardPerTokenPaid;
   /// @notice The earned() value when an account last staked/withdrew/withdrew rewards
@@ -77,9 +76,6 @@ contract BetPool is Multicall, SelfPermit, Ownable {
     betToken = BetToken(_betToken);
     duration = _duration;
     _transferOwnership(msg.sender);
-
-    unitsOf[address(0x1)] = 1;
-    unitsOf[address(0x2)] = 2;
   }
 
   /// -----------------------------------------------------------------------

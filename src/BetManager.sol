@@ -5,6 +5,7 @@ import "openzeppelin-contracts/token/ERC20/utils/SafeERC20.sol";
 import "openzeppelin-contracts/access/AccessControl.sol";
 
 import {BetToken} from "./BetToken.sol";
+import {BetPool} from "./BetPool.sol";
 import {ApiConsumer} from "./ApiConsumer.sol";
 
 /**
@@ -79,10 +80,10 @@ contract BetManager is AccessControl {
   /// -----------------------------------------------------------------------
 
   BetToken public betToken;
+  BetPool public betPool;
   ApiConsumer public apiConsumer;
 
   // TODO: CHANGE TO REAL CONTRACT
-  address public stackingContract;
   address public teamAddress;
 
   mapping(address => User) public users;
@@ -116,7 +117,7 @@ contract BetManager is AccessControl {
   constructor(
     address _betToken,
     address _apiConsumer,
-    address _stackingContract,
+    address _betPool,
     address _teamAddress
   ) {
     require(
@@ -128,7 +129,7 @@ contract BetManager is AccessControl {
       "BetManager: ApiConsumer address must be non-zero"
     );
     require(
-      _stackingContract != address(0),
+      _betPool != address(0),
       "BetManager: StackingContract address must be non-zero"
     );
     require(
@@ -137,8 +138,10 @@ contract BetManager is AccessControl {
     );
     betToken = BetToken(_betToken);
     apiConsumer = ApiConsumer(_apiConsumer);
-    stackingContract = _stackingContract;
+    betPool = BetPool(_betPool);
     teamAddress = _teamAddress;
+
+    // betToken.approve(address(betPool), type(uint256).max);
 
     _grantRole(BETTING_SESSION_SETTLER_ROLE, _apiConsumer);
     _grantRole(BETTING_SESSION_MANAGER_ROLE, msg.sender);
@@ -260,6 +263,11 @@ contract BetManager is AccessControl {
     session.state = SessionState.SETTLED;
     session.betResult = betResult;
 
+    // Determine winners
+    address[] memory usersWhoWon = usersPerBetPerSessionId[sessionId][
+      betResult
+    ];
+
     // Calculate shares
     (
       uint256 tokensForWinner,
@@ -268,31 +276,37 @@ contract BetManager is AccessControl {
       uint256 tokensForTeam
     ) = calculateShares(session.totalTokensBet);
 
-    // Determine winners
-    address[] memory usersWhoWon = usersPerBetPerSessionId[sessionId][
-      betResult
-    ];
-
     if (usersWhoWon.length == 0) {
       // No winners, distribute winner shares to stacking contract
-      betToken.safeTransfer(stackingContract, tokensForWinner);
-    } else {
-      // Distribute winner shares to winners
-      uint256 tokensWon = tokensForWinner / usersWhoWon.length;
-      for (uint256 i = 0; i < usersWhoWon.length; i++) {
-        address user = usersWhoWon[i];
-        users[user].tokenToClaim += tokensWon;
-        users[user].totalTokensWon += tokensWon;
-        users[user].totalBetWon += 1;
-      }
+      // Distribute stacking shares to stacking contract
+      tokensForStacking += tokensForWinner;
+    } else if (
+      usersWhoWon.length * TOKEN_AMOUNT_PER_BET < tokensForWinner / 1e18
+    ) {
+      tokensForWinner = session.totalTokensBet;
+      (tokensForStacking, tokensForBurn, tokensForTeam) = (0, 0, 0);
     }
-    // Distribute stacking shares to stacking contract
-    betToken.safeTransfer(stackingContract, tokensForStacking);
-    // Distribute team shares to team
-    betToken.safeTransfer(teamAddress, tokensForTeam);
 
-    // Burn burn shares
-    betToken.burn(tokensForBurn);
+    if (tokensForWinner > 0 && usersWhoWon.length > 0) {
+      // Distribute winner shares to winners
+      distributeWinnerShares(tokensForWinner, usersWhoWon);
+    }
+
+    if (tokensForStacking > 0) {
+      // Distribute stacking shares to stacking contract
+      betToken.safeTransfer(address(betPool), tokensForStacking);
+      betPool.notifyRewardAmount(tokensForStacking);
+    }
+
+    if (tokensForTeam > 0) {
+      // Distribute team shares to team address
+      betToken.safeTransfer(teamAddress, tokensForTeam);
+    }
+
+    if (tokensForBurn > 0) {
+      // Burn burn shares
+      betToken.burn(tokensForBurn);
+    }
 
     emit BettingSessionSettled(sessionId, betResult);
     return true;
@@ -501,6 +515,20 @@ contract BetManager is AccessControl {
         MAX_TOKENS_PER_SESSION,
       "BetManager: Max tokens per session exceeded"
     );
+  }
+
+  function distributeWinnerShares(
+    uint256 tokensForWinner,
+    address[] memory usersWhoWon
+  ) private {
+    // Distribute winner shares to winners
+    uint256 tokensWon = tokensForWinner / usersWhoWon.length;
+    for (uint256 i = 0; i < usersWhoWon.length; i++) {
+      address user = usersWhoWon[i];
+      users[user].tokenToClaim += tokensWon;
+      users[user].totalTokensWon += tokensWon;
+      users[user].totalBetWon += 1;
+    }
   }
 
   /**

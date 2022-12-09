@@ -5,10 +5,12 @@ import "openzeppelin-contracts/token/ERC20/ERC20.sol";
 
 import {BetToken} from "../src/BetToken.sol";
 import {BetManager} from "../src/BetManager.sol";
+import {BetPool} from "../src/BetPool.sol";
 import {ApiConsumer} from "../src/ApiConsumer.sol";
 
 contract BetManagerTest is Test {
   BetToken betToken;
+  BetPool betPool;
   ApiConsumer apiConsumer;
   BetManager betManager;
 
@@ -24,7 +26,6 @@ contract BetManagerTest is Test {
   address public better2 = address(0x2);
 
   // TODO: CHANGE TO REAL CONTRACT
-  address public stackingContractAddress = address(0x666);
   address public teamAddress = address(0x667);
 
   uint256[] public bets;
@@ -52,10 +53,11 @@ contract BetManagerTest is Test {
     vm.startPrank(adminAddress);
     betToken = new BetToken();
     apiConsumer = new ApiConsumer();
+    betPool = new BetPool(address(betToken), 7 days);
     betManager = new BetManager(
       address(betToken),
       address(apiConsumer),
-      stackingContractAddress,
+      address(betPool),
       teamAddress
     );
 
@@ -66,6 +68,7 @@ contract BetManagerTest is Test {
       betManager.BETTING_SESSION_SETTLER_ROLE(),
       address(apiConsumer)
     );
+    betPool.setRewardDistributor(address(betManager), true);
     vm.stopPrank();
 
     linkToken = IERC20(linkAddress);
@@ -81,7 +84,7 @@ contract BetManagerTest is Test {
   function test_initialState() public {
     assertEq(address(betManager.betToken()), address(betToken));
     assertEq(address(betManager.apiConsumer()), address(apiConsumer));
-    assertEq(betManager.stackingContract(), stackingContractAddress);
+    assertEq(address(betManager.betPool()), address(betPool));
     assertEq(betManager.teamAddress(), teamAddress);
     assertTrue(
       betManager.hasRole(betManager.DEFAULT_ADMIN_ROLE(), adminAddress)
@@ -488,15 +491,14 @@ contract BetManagerTest is Test {
     vm.stopPrank();
 
     // Simulate Chainlink response with winners
+    emit log_string("Simulate Chainlink response with winners");
     uint256 snapshot = vm.snapshot();
     address oracle = apiConsumer.chainlinkOracleAddr();
     vm.startPrank(oracle);
     uint256 beforeSettleContractBalance = betToken.balanceOf(
       address(betManager)
     );
-    uint256 beforeSettleStackingBalance = betToken.balanceOf(
-      stackingContractAddress
-    );
+    uint256 beforeSettleStackingBalance = betToken.balanceOf(address(betPool));
     uint256 beforeSettleBetTokenTotalSupply = betToken.totalSupply();
     uint256 beforeSettleTeamBalance = betToken.balanceOf(teamAddress);
     vm.expectEmit(true, false, false, true);
@@ -505,9 +507,7 @@ contract BetManagerTest is Test {
     uint256 afterSettleContractBalance = betToken.balanceOf(
       address(betManager)
     );
-    uint256 afterSettleStackingBalance = betToken.balanceOf(
-      stackingContractAddress
-    );
+    uint256 afterSettleStackingBalance = betToken.balanceOf(address(betPool));
     uint256 afterSettleBetTokenTotalSupply = betToken.totalSupply();
     uint256 afterSettleTeamBalance = betToken.balanceOf(teamAddress);
     vm.stopPrank();
@@ -522,20 +522,21 @@ contract BetManagerTest is Test {
     );
     betManager.settleBettingSession(sessionId, 20);
 
-    assertTrue(
-      beforeSettleContractBalance - afterSettleContractBalance ==
-        1000000000000000000
+    assertEq(
+      beforeSettleContractBalance - afterSettleContractBalance,
+      1000000000000000000
     );
-    assertTrue(
-      afterSettleStackingBalance - beforeSettleStackingBalance ==
-        375000000000000000
+    assertEq(
+      afterSettleStackingBalance - beforeSettleStackingBalance,
+      375000000000000000
     );
-    assertTrue(
-      afterSettleTeamBalance - beforeSettleTeamBalance == 250000000000000000
+    assertEq(
+      afterSettleTeamBalance - beforeSettleTeamBalance,
+      250000000000000000
     );
-    assertTrue(afterSettleBetTokenTotalSupply == 199999625000000000000000);
-    assertTrue(betManager.getTokenToClaim(better1) == 1333333333333333333);
-    assertTrue(betManager.getTokenToClaim(better2) == 2666666666666666666);
+    assertEq(afterSettleBetTokenTotalSupply, 199999625000000000000000);
+    assertEq(betManager.getTokenToClaim(better1), 1333333333333333333);
+    assertEq(betManager.getTokenToClaim(better2), 2666666666666666666);
 
     vm.startPrank(better1);
     uint256 beforeBetter1Balance = betToken.balanceOf(better1);
@@ -553,16 +554,17 @@ contract BetManagerTest is Test {
     vm.stopPrank();
 
     // Simulate Chainlink response without winners
+    emit log_string("Simulate Chainlink response without winners");
     vm.revertTo(snapshot);
     oracle = apiConsumer.chainlinkOracleAddr();
     vm.startPrank(oracle);
     beforeSettleContractBalance = betToken.balanceOf(address(betManager));
-    beforeSettleStackingBalance = betToken.balanceOf(stackingContractAddress);
+    beforeSettleStackingBalance = betToken.balanceOf(address(betPool));
     beforeSettleBetTokenTotalSupply = betToken.totalSupply();
     beforeSettleTeamBalance = betToken.balanceOf(teamAddress);
     apiConsumer.fulfill(sessionRequestId, 0);
     afterSettleContractBalance = betToken.balanceOf(address(betManager));
-    afterSettleStackingBalance = betToken.balanceOf(stackingContractAddress);
+    afterSettleStackingBalance = betToken.balanceOf(address(betPool));
     afterSettleBetTokenTotalSupply = betToken.totalSupply();
     afterSettleTeamBalance = betToken.balanceOf(teamAddress);
 
@@ -572,19 +574,21 @@ contract BetManagerTest is Test {
 
     (, , , , uint256 totalTokensBet, ) = betManager.bettingSessions(sessionId);
 
-    assertTrue(
-      afterSettleContractBalance + totalTokensBet == beforeSettleContractBalance
+    assertEq(
+      afterSettleContractBalance,
+      beforeSettleContractBalance - totalTokensBet
     );
-    assertTrue(
-      afterSettleStackingBalance - beforeSettleStackingBalance ==
-        4375000000000000000
+    assertEq(
+      afterSettleStackingBalance - beforeSettleStackingBalance,
+      4375000000000000000
     );
-    assertTrue(
-      afterSettleTeamBalance - beforeSettleTeamBalance == 250000000000000000
+    assertEq(
+      afterSettleTeamBalance - beforeSettleTeamBalance,
+      250000000000000000
     );
-    assertTrue(afterSettleBetTokenTotalSupply == 199999625000000000000000);
-    assertTrue(betManager.getTokenToClaim(better1) == 0);
-    assertTrue(betManager.getTokenToClaim(better2) == 0);
+    assertEq(afterSettleBetTokenTotalSupply, 199999625000000000000000);
+    assertEq(betManager.getTokenToClaim(better1), 0);
+    assertEq(betManager.getTokenToClaim(better2), 0);
   }
 
   function test_bettingSessionStorage() public {}
