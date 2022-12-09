@@ -56,6 +56,8 @@ contract BetManager is AccessControl {
     SessionState state;
   }
 
+
+
   /// -----------------------------------------------------------------------
   /// Constants
   /// -----------------------------------------------------------------------
@@ -83,7 +85,6 @@ contract BetManager is AccessControl {
   BetPool public betPool;
   ApiConsumer public apiConsumer;
 
-  // TODO: CHANGE TO REAL CONTRACT
   address public teamAddress;
 
   mapping(address => User) public users;

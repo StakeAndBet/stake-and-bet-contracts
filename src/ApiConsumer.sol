@@ -52,7 +52,7 @@ contract ApiConsumer is ChainlinkClient, AccessControl {
 
   constructor() {
     setChainlinkToken(0x326C977E6efc84E512bB9C30f76E30c160eD06FB);
-    setChainlinkOracle(chainlinkOracleAddr);
+    setChainlinkOracle(0xBb3875718A107B7fcC04935eB7e3fFb26820E0B8);
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
   }
 
