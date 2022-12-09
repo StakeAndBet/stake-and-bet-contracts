@@ -4,6 +4,8 @@ pragma solidity ^0.8.16;
 import "openzeppelin-contracts/token/ERC20/presets/ERC20PresetMinterPauser.sol";
 import "openzeppelin-contracts/access/Ownable.sol";
 
+// TODO: Update this contract to use access role instead of Ownable
+
 /**
  * @author  stakeandbet@proton.me
  * @title   BetToken
@@ -14,16 +16,18 @@ import "openzeppelin-contracts/access/Ownable.sol";
  */
 
 contract BetToken is ERC20PresetMinterPauser, Ownable {
-      /// -----------------------------------------------------------------------
-    /// Storage variables
-    /// --------------------------------------------------------------------uu---
+  /// -----------------------------------------------------------------------
+  /// Storage variables
+  /// --------------------------------------------------------------------uu---
   // Transfer whitelist
   mapping(address => bool) private whitelist;
 
   event AddedToWhitelist(address indexed account);
   event RemovedFromWhitelist(address indexed account);
 
-  constructor() ERC20PresetMinterPauser("Stake & Bet Token", "SAB") {}
+  constructor() ERC20PresetMinterPauser("Stake & Bet Token", "SAB") {
+    revokeRole(MINTER_ROLE, msg.sender);
+  }
 
   /**
    * @notice Adds an address to the whitelist

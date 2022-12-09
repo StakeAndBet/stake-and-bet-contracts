@@ -1,5 +1,10 @@
+@clones/=lib/playpen/lib/clones-with-immutable-args/src/
 chainlink/=lib/chainlink/
+clones-with-immutable-args/=lib/playpen/lib/clones-with-immutable-args/src/
 ds-test/=lib/forge-std/lib/ds-test/src/
 erc4626-tests/=lib/openzeppelin-contracts/lib/erc4626-tests/
 forge-std/=lib/forge-std/src/
 openzeppelin-contracts/=lib/openzeppelin-contracts/contracts/
+playpen/=lib/playpen/src/
+solmate/=lib/playpen/lib/solmate/src/
+weird-erc20/=lib/playpen/lib/solmate/lib/weird-erc20/src/
