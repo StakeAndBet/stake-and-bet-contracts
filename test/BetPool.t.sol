@@ -40,30 +40,10 @@ contract BetPoolTest is Test {
     betToken.mint(stacker2, 1000 ether);
     vm.stopPrank();
 
-    // Initial stacking
-    // betToken.approve(address(betPool), type(uint256).max);
-    // betPool.stake(1 ether);
-
     // distribute rewards
     vm.startPrank(address(betManager));
     betToken.transfer(address(betPool), 100 ether);
     betPool.notifyRewardAmount(100 ether);
-    vm.stopPrank();
-
-    // betToken.grantRole(betToken.MINTER_ROLE(), betTokenMinter);
-    // betToken.addToWhitelist(address(betManager));
-    // apiConsumer.setBetManager(address(betManager));
-    // betManager.grantRole(
-    //   betManager.BETTING_SESSION_SETTLER_ROLE(),
-    //   address(apiConsumer)
-    // );
-    // linkToken = IERC20(linkAddress);
-    // // Steal link
-    // vm.startPrank(0xE4dDb4233513498b5aa79B98bEA473b01b101a67);
-    // linkToken.transfer(
-    //   address(apiConsumer),
-    //   linkToken.balanceOf(0xE4dDb4233513498b5aa79B98bEA473b01b101a67)
-    // );
     vm.stopPrank();
   }
 

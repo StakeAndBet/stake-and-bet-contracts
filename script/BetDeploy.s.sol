@@ -57,7 +57,7 @@ contract BetDeploy is Script {
     // Configure apiConsumer
     apiConsumer.setBetManager(address(betManager));
 
-    // Create Betting Session
+    // Create Betting Session (Testing purposes)
     betManager.addVerifiedTwitterUserId("elonmusk");
     betManager.createBettingSession(1670716800, 1670803199, "elonmusk");
     betManager.createBettingSession(1670803200, 1670889599, "elonmusk");
@@ -68,6 +68,11 @@ contract BetDeploy is Script {
     betManager.createBettingSession(1671235200, 1671321599, "elonmusk");
     betManager.createBettingSession(1671321600, 1671407999, "elonmusk");
     betManager.createBettingSession(1671408000, 1671494399, "elonmusk");
+    betManager.createBettingSession(1671494400, 1671580799, "elonmusk");
+    betManager.createBettingSession(1671580800, 1671667199, "elonmusk");
+    betManager.createBettingSession(1671667200, 1671753599, "elonmusk");
+    betManager.createBettingSession(1671753600, 1671839999, "elonmusk");
+
 
     vm.stopBroadcast();
 
