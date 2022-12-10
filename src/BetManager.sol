@@ -251,7 +251,6 @@ contract BetManager is AccessControl {
    * @return bool true if the session is successfully settled
    */
   // TODO: Gas optimization
-  // TODO: Add approve to deposit tokens to stacking pool
   function settleBettingSession(bytes32 sessionId, uint256 betResult)
     external
     onlyRole(BETTING_SESSION_SETTLER_ROLE)
@@ -320,6 +319,7 @@ contract BetManager is AccessControl {
    * @param bets Array of bets placed by the user
    * @dev This function is used to place bets for a particular session. The user must have enough tokens to place the bets.
    */
+  // TODO: Gas optimization, use a struct for bets instead of an array
   function placeBets(bytes32 sessionId, uint256[] calldata bets) external {
     require(
       bettingSessions[sessionId].startTimestamp != 0,
