@@ -56,8 +56,6 @@ contract BetManager is AccessControl {
     SessionState state;
   }
 
-
-
   /// -----------------------------------------------------------------------
   /// Constants
   /// -----------------------------------------------------------------------
@@ -91,6 +89,8 @@ contract BetManager is AccessControl {
   mapping(bytes32 => mapping(uint256 => address[])) usersPerBetPerSessionId;
   mapping(bytes32 => BettingSession) public bettingSessions;
   mapping(bytes32 => bool) public verifiedTwitterUserIds;
+
+  bytes32[] public bettingSessionIds;
 
   /// -----------------------------------------------------------------------
   /// Events
@@ -197,6 +197,7 @@ contract BetManager is AccessControl {
       totalTokensBet: 0,
       state: SessionState.STARTED
     });
+    bettingSessionIds.push(sessionId);
     emit BettingSessionCreated(
       sessionId,
       startTimestamp,
@@ -451,6 +452,39 @@ contract BetManager is AccessControl {
     returns (uint256)
   {
     return users[user].totalTokensBetPerSessionId[sessionId];
+  }
+
+  /**
+   * @notice  Get an array of session IDs.
+   * @dev     Use range to avoid gas limit errors
+   * @param   start  .
+   * @param   end  .
+   * @return  bytes32[]  .
+   */
+  function getBettingSessionIdsBySlice(uint256 start, uint256 end)
+    external
+    view
+    returns (bytes32[] memory)
+  {
+    require(start < end, "BetManager: start must be smaller than end");
+    require(
+      end <= bettingSessionIds.length,
+      "BetManager: end must be smaller than sessionIds.length"
+    );
+    bytes32[] memory sessionIdsSlice = new bytes32[](end - start);
+    for (uint256 i = start; i < end; i++) {
+      sessionIdsSlice[i - start] = bettingSessionIds[i];
+    }
+    return sessionIdsSlice;
+  }
+
+  /**
+   * @notice   Return the number of session IDs.
+   * @dev  Get the length of the session IDs array.
+   * @return  uint256  .
+   */
+  function getSessionIdsLength() external view returns (uint256) {
+    return bettingSessionIds.length;
   }
 
   /**

@@ -57,6 +57,18 @@ contract BetDeploy is Script {
     // Configure apiConsumer
     apiConsumer.setBetManager(address(betManager));
 
+    // Create Betting Session
+    betManager.addVerifiedTwitterUserId("elonmusk");
+    betManager.createBettingSession(1670716800, 1670803199, "elonmusk");
+    betManager.createBettingSession(1670803200, 1670889599, "elonmusk");
+    betManager.createBettingSession(1670889600, 1670975999, "elonmusk");
+    betManager.createBettingSession(1670976000, 1671062399, "elonmusk");
+    betManager.createBettingSession(1671062400, 1671148799, "elonmusk");
+    betManager.createBettingSession(1671148800, 1671235199, "elonmusk");
+    betManager.createBettingSession(1671235200, 1671321599, "elonmusk");
+    betManager.createBettingSession(1671321600, 1671407999, "elonmusk");
+    betManager.createBettingSession(1671408000, 1671494399, "elonmusk");
+
     vm.stopBroadcast();
 
     console.log("Deployer address: ", deployerAddress);
