@@ -50,6 +50,7 @@ contract BetDeployGoerliIntegrationTest is Script {
     // Configure betToken
     betToken.grantRole(betToken.MINTER_ROLE(), address(betStableSwap));
     betToken.revokeRole(betToken.MINTER_ROLE(), deployerAddress);
+    betToken.revokeRole(betToken.DEFAULT_ADMIN_ROLE(), deployerAddress);
     betToken.addToWhitelist(address(betManager));
     betToken.addToWhitelist(address(betPool));
 
