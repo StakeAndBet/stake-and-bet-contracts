@@ -5,6 +5,7 @@
 * **BetPool** : This contract is the stacking pool which is filled with bet fees.
 * **BetStableSwap** : The purpose of this contract is to provide a simple way to swap between two tokens. It is not meant to be used as a liquidity pool, but rather as a way to swap between two tokens.
 * **BetToken** : This is the token used for betting and staking in the Stake & Bet platform.
+* **Operator** : This contract transfer the API Consumer request to our Chainlink Node, then transfer the Node request to the API Consumer. 
 
 
 ## Environment Variables
