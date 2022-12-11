@@ -279,11 +279,8 @@ contract BetManager is AccessControl {
 
     if (usersWhoWon.length == 0) {
       // No winners, distribute winner shares to stacking contract
-      // Distribute stacking shares to stacking contract
       tokensForStacking += tokensForWinner;
-    } else if (
-      usersWhoWon.length * TOKEN_AMOUNT_PER_BET < tokensForWinner / 1e18
-    ) {
+    } else if (usersWhoWon.length * TOKEN_AMOUNT_PER_BET > tokensForWinner) {
       tokensForWinner = session.totalTokensBet;
       (tokensForStacking, tokensForBurn, tokensForTeam) = (0, 0, 0);
     }

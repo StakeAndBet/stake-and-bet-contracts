@@ -8,18 +8,23 @@ import {BetStableSwap} from "../src/BetStableSwap.sol";
 import {BetManager} from "../src/BetManager.sol";
 import {BetPool} from "../src/BetPool.sol";
 
+import {IERC20} from "openzeppelin-contracts/token/ERC20/IERC20.sol";
+
 // This script is designed to deploy all contracts and configure them on the Goerli testnet.
 // daiAddress is the address of the DAI token on Goerli.
 // operator is the address of the Chainlink operator on Goerli.
-contract BetDeploy is Script {
+contract BetDeployGoerliIntegrationTest is Script {
   ApiConsumer apiConsumer;
   BetToken betToken;
   BetManager betManager;
   BetPool betPool;
   BetStableSwap betStableSwap;
 
+  IERC20 linkToken;
+
   address daiAddress = 0x11fE4B6AE13d2a6055C8D9cF65c55bac32B5d844;
   address operatorAddress = 0xBb3875718A107B7fcC04935eB7e3fFb26820E0B8;
+  address linkAddress = 0x326C977E6efc84E512bB9C30f76E30c160eD06FB;
 
   uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
   address deployerAddress = vm.rememberKey(deployerPrivateKey);
@@ -27,6 +32,8 @@ contract BetDeploy is Script {
 
   function run() public {
     vm.startBroadcast(deployerPrivateKey);
+
+    linkToken = IERC20(linkAddress);
 
     // Deploy contracts
     betToken = new BetToken();
@@ -42,6 +49,7 @@ contract BetDeploy is Script {
 
     // Configure betToken
     betToken.grantRole(betToken.MINTER_ROLE(), address(betStableSwap));
+    betToken.revokeRole(betToken.MINTER_ROLE(), deployerAddress);
     betToken.addToWhitelist(address(betManager));
     betToken.addToWhitelist(address(betPool));
 
@@ -56,24 +64,24 @@ contract BetDeploy is Script {
 
     // Configure apiConsumer
     apiConsumer.setBetManager(address(betManager));
+    apiConsumer.setJobId(jobId);
 
-    // Create Betting Session (Testing purposes)
+    linkToken.transfer(address(apiConsumer), 10 ether); // 10 LINK
+
     betManager.addVerifiedTwitterUserId("elonmusk");
-    betManager.createBettingSession(1670716800, 1670803199, "elonmusk");
-    betManager.createBettingSession(1670803200, 1670889599, "elonmusk");
-    betManager.createBettingSession(1670889600, 1670975999, "elonmusk");
-    betManager.createBettingSession(1670976000, 1671062399, "elonmusk");
-    betManager.createBettingSession(1671062400, 1671148799, "elonmusk");
-    betManager.createBettingSession(1671148800, 1671235199, "elonmusk");
-    betManager.createBettingSession(1671235200, 1671321599, "elonmusk");
-    betManager.createBettingSession(1671321600, 1671407999, "elonmusk");
-    betManager.createBettingSession(1671408000, 1671494399, "elonmusk");
-    betManager.createBettingSession(1671494400, 1671580799, "elonmusk");
-    betManager.createBettingSession(1671580800, 1671667199, "elonmusk");
-    betManager.createBettingSession(1671667200, 1671753599, "elonmusk");
-    betManager.createBettingSession(1671753600, 1671839999, "elonmusk");
 
-
+    // Create Betting Session of 1 days
+    uint256 currentTimestamp = block.timestamp;
+    uint256 startTimestamp = currentTimestamp -
+      (currentTimestamp % 1 days) +
+      1 days;
+    for (uint256 i = 0; i < 10; i++) {
+      betManager.createBettingSession(
+        uint32(startTimestamp + (i * 1 days)),
+        uint32(startTimestamp + (i * 1 days) + 1 days - 1 seconds),
+        "elonmusk"
+      );
+    }
     vm.stopBroadcast();
 
     console.log("Deployer address: ", deployerAddress);

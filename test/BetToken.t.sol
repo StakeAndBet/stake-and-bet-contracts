@@ -20,6 +20,7 @@ contract BetTokenTest is Test {
   function setUp() public {
     vm.startPrank(owner);
     token = new BetToken();
+    // Only for testing purposes
     token.grantRole(token.MINTER_ROLE(), betTokenMinter);
     vm.stopPrank();
   }
